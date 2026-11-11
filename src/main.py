@@ -50,7 +50,7 @@ def main():
     src.add_argument("--video", help="caminho de um vídeo")
     src.add_argument("--webcam", type=int, nargs="?", const=0, help="índice da webcam (padrão 0)")
     p.add_argument("--weights", default="models/best.pt", help="pesos do modelo treinado")
-    p.add_argument("--conf", type=float, default=0.4, help="confiança mínima (0-1)")
+    p.add_argument("--conf", type=float, default=0.5, help="confiança mínima (0-1); 0,5 = ponto de F1 máximo no teste")
     p.add_argument("--save", action="store_true", help="salva a imagem anotada em results/")
     args = p.parse_args()
 

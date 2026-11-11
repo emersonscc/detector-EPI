@@ -8,15 +8,31 @@ venv/
 # Jupyter
 .ipynb_checkpoints/
 
-# Dados e modelos (pesados)
-data/raw/*
-data/processed/*
+# Dados (pesados): ignora tudo em data/, mantendo só a estrutura de pastas
+# (raw/ = Roboflow e capturas da webcam, synthetic/ = imagens geradas, processed/ = dataset final)
+data/**
+!data/**/
 !data/**/.gitkeep
+
+# Modelos: só o modelo final é versionado
 models/*
 !models/.gitkeep
 !models/best.pt
+*.pt
+!models/best.pt
+
+# Saídas de treino e de execução
+runs/
 results/*
 !results/.gitkeep
+*.cache
+
+# Pacotes compactados (dataset enviado ao Drive, resultados baixados do Colab)
+*.zip
+
+# Imagens de EPI (fotos de catálogo/sites de imagens: não redistribuir)
+assets/epi_fotos/
+assets/epi/
 
 # IDE / SO
 .vscode/

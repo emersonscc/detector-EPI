@@ -19,7 +19,7 @@ class Detection:
 
 
 class EPIDetector:
-    def __init__(self, weights="models/best.pt", conf=0.4):
+    def __init__(self, weights="models/best.pt", conf=0.5):
         self.model = YOLO(weights)
         self.conf = conf
 
