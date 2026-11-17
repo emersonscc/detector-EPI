@@ -45,10 +45,18 @@ epi-detector/
 │   ├── prepare_cutouts.py  # recorte dos EPIs (fundo -> transparência)
 │   ├── capture_webcam.py   # captura de fotos pela webcam
 │   └── synth_dataset.py    # geração do dataset sintético
+├── app.py                  # abre a interface gráfica
 ├── src/
 │   ├── detector.py         # wrapper do modelo YOLO
+│   ├── pipeline.py         # pré-processamento -> detecção -> desenho
+│   ├── gui/                # interface gráfica (PySide6)
+│   │   ├── main_window.py  # janela principal
+│   │   ├── workers.py      # vídeo/webcam e lote em threads
+│   │   ├── widgets.py      # componentes visuais
+│   │   └── styles.py       # tema
 │   ├── utils/drawing.py    # caixas, rótulos e faixa de status
-│   └── main.py             # ponto de entrada
+│   ├── utils/io.py         # leitura/gravação (caminhos com acento no Windows)
+│   └── main.py             # versão em linha de comando
 └── tests/
 ```
 
@@ -60,7 +68,18 @@ Abra `notebooks/treino_colab.ipynb` no Google Colab com GPU e execute as célula
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+```
 
+### Interface gráfica
+```bash
+python app.py
+```
+- **Fontes:** imagem, vídeo, pasta (navegação com ← →) ou webcam, pelos botões ou **arrastando o arquivo para a janela**. Formatos: JPG, PNG, BMP, TIFF, WEBP; MP4, AVI, MOV, MKV, WMV.
+- **Painel:** situação (EPI OK / atenção / nenhuma pessoa), contagem por classe, lista de detecções, confiança mínima ajustável e desempenho (tempo de inferência e quadros/s).
+- **Saídas** (em `results/`): salvar a imagem anotada, capturar quadro e gravar o vídeo anotado durante vídeo/webcam, e **Processar pasta**, que anota todas as imagens de uma pasta e gera `relatorio_epi.csv` com o status de cada uma.
+
+### Linha de comando
+```bash
 python -m src.main --image foto.jpg --save
 python -m src.main --video obra.mp4
 python -m src.main --webcam
@@ -68,4 +87,4 @@ python -m src.main --webcam
 Opções: `--conf` ajusta a confiança mínima (padrão 0,5); `--weights caminho.pt` usa outros pesos.
 
 ## Tecnologias
-Python, Ultralytics YOLO26, OpenCV.
+Python, Ultralytics YOLO26, OpenCV, PySide6 (Qt).
