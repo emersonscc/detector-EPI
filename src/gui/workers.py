@@ -170,7 +170,8 @@ class BatchWorker(QThread):
         with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:  # utf-8-sig: Excel abre com acentos
             w = csv.writer(f, delimiter=";")
             w.writerow(["arquivo", "status", "capacete", "sem_capacete", "oculos", "sem_oculos",
-                        "violacoes", "confianca_minima"])
+                        "violacoes", "confianca_minima", "pre_processamento"])
+            prep = self.pipeline.preprocessor.settings.describe()
             for i, path in enumerate(files, 1):
                 if not self._running:
                     break
@@ -179,12 +180,12 @@ class BatchWorker(QThread):
                     result = self.pipeline.process(read_image(path))
                 except Exception:  # noqa: BLE001 - arquivo corrompido não interrompe o lote
                     summary["erros"] += 1
-                    w.writerow([path.name, "ERRO DE LEITURA", "", "", "", "", "", ""])
+                    w.writerow([path.name, "ERRO DE LEITURA", "", "", "", "", "", "", ""])
                     continue
                 write_image(self.out_dir / f"{path.stem}_epi.jpg", Pipeline.with_banner(result))
                 c = result.counts
                 w.writerow([path.name, names[result.status], c["helmet"], c["no_helmet"], c["goggles"],
-                            c["no_goggles"], result.violations, f"{self.pipeline.conf:.2f}".replace(".", ",")])
+                            c["no_goggles"], result.violations, f"{self.pipeline.conf:.2f}".replace(".", ","), prep])
                 summary["imagens"] += 1
                 summary[result.status] += 1
                 self.preview.emit(to_qimage(result.annotated), result)

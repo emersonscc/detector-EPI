@@ -53,6 +53,19 @@ QStatusBar {{ background: {PANEL}; color: {MUTED}; border-top: 1px solid {BORDER
 QScrollArea {{ background: {BG}; }}
 QSplitter::handle {{ background: {BG}; width: 4px; }}
 QMessageBox {{ background: {PANEL}; }}
+QTabWidget::pane {{ border: none; }}
+QTabBar {{ qproperty-drawBase: 0; }}
+QTabBar::tab {{ background: {PANEL}; color: {MUTED}; border: 1px solid {BORDER}; padding: 7px 14px;
+                margin-right: 4px; border-radius: 6px; }}
+QTabBar::tab:selected {{ color: {TEXT}; border-color: {ACCENT}; background: #262c35; }}
+QTabBar::tab:hover:!selected {{ color: {TEXT}; }}
+#compareButton:checked {{ background: #3a2f12; border-color: {ACCENT}; color: {ACCENT}; }}
+QCheckBox:disabled, QLabel:disabled, #confValue:disabled {{ color: #4d5562; }}
+QSlider::sub-page:horizontal:disabled {{ background: #3a414c; }}
+QSlider::handle:horizontal:disabled {{ background: #4d5562; }}
+QCheckBox::indicator {{ width: 14px; height: 14px; border: 1px solid {MUTED}; border-radius: 3px; background: {BG}; }}
+QCheckBox::indicator:hover {{ border-color: {TEXT}; }}
+QCheckBox::indicator:checked {{ background: {ACCENT}; border-color: {ACCENT}; }}
 QToolTip {{ background: {PANEL}; color: {TEXT}; border: 1px solid {BORDER}; padding: 4px; }}
 """
 

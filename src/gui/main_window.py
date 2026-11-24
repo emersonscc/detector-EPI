@@ -10,13 +10,15 @@ from PySide6.QtCore import QLibraryInfo, QLocale, QSize, Qt, QTimer, QTranslator
 from PySide6.QtGui import QAction, QColor, QDesktopServices, QKeySequence
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFileDialog, QHBoxLayout, QLabel,
                                QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QProgressBar,
-                               QPushButton, QScrollArea, QSlider, QSplitter, QStyle, QToolBar, QVBoxLayout,
-                               QWidget)
+                               QPushButton, QScrollArea, QSlider, QSplitter, QStyle, QTabWidget, QToolBar,
+                               QVBoxLayout, QWidget)
 
+from src.gui.preprocess_panel import PreprocessPanel
 from src.gui.styles import apply_theme
 from src.gui.widgets import BAD_COLOR, CLASS_INFO, OK_COLOR, ClassCounts, ImageView, InfoRow, StatusBadge, section
 from src.gui.workers import BatchWorker, ModelLoader, StreamWorker, to_qimage
 from src.pipeline import Pipeline
+from src.preprocess import side_by_side
 from src.utils.io import IMAGE_EXTS, VIDEO_EXTS, is_image, is_video, list_images, read_image, write_image
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -114,11 +116,17 @@ class MainWindow(QMainWindow):
         self.progress = QProgressBar(textVisible=True)
         self.progress.setFixedWidth(240)
         self.progress.hide()
+        self.btn_compare = QPushButton("◧  Comparar com o original", checkable=True,
+                                       toolTip="Mostra a imagem original e a pré-processada lado a lado (C)")
+        self.btn_compare.setObjectName("compareButton")
+        self.btn_compare.setShortcut(Qt.Key_C)
+        self.btn_compare.toggled.connect(self._refresh_view)
         nav = QHBoxLayout()
         nav.setContentsMargins(4, 0, 4, 0)
         nav.addWidget(self.btn_prev)
         nav.addWidget(self.lbl_name, 1)
         nav.addWidget(self.progress)
+        nav.addWidget(self.btn_compare)
         nav.addWidget(self.btn_next)
 
         left = QWidget()
@@ -152,28 +160,49 @@ class MainWindow(QMainWindow):
 
         self.info_source = InfoRow("Fonte")
         self.info_size = InfoRow("Resolução")
+        self.info_prep = InfoRow("Pré-processamento")
         self.info_infer = InfoRow("Inferência")
         self.info_fps = InfoRow("Quadros/s")
 
-        panel = QWidget()
-        pv = QVBoxLayout(panel)
-        pv.setContentsMargins(6, 12, 12, 12)
-        pv.setSpacing(8)
-        pv.addWidget(section("Situação", self.badge))
-        pv.addWidget(section("Contagem", self.counts))
-        pv.addWidget(section("Detecções", self.det_list))
-        pv.addWidget(section("Ajustes", conf_row, self.conf_slider, conf_hint, self.chk_conf))
-        pv.addWidget(section("Desempenho", self.info_source, self.info_size, self.info_infer, self.info_fps))
-        pv.addStretch()
-        scroll = QScrollArea(widgetResizable=True)
-        scroll.setWidget(panel)
-        scroll.setMinimumWidth(320)
-        scroll.setMaximumWidth(380)
-        scroll.setFrameShape(QScrollArea.NoFrame)
+        def scrolled(widget):
+            area = QScrollArea(widgetResizable=True)
+            area.setWidget(widget)
+            area.setFrameShape(QScrollArea.NoFrame)
+            return area
+
+        # aba 1: resultado da detecção
+        result_tab = QWidget()
+        rv = QVBoxLayout(result_tab)
+        rv.setContentsMargins(0, 8, 0, 0)
+        rv.setSpacing(8)
+        rv.addWidget(section("Contagem", self.counts))
+        rv.addWidget(section("Detecções", self.det_list))
+        rv.addWidget(section("Ajustes", conf_row, self.conf_slider, conf_hint, self.chk_conf))
+        rv.addWidget(section("Desempenho", self.info_source, self.info_size, self.info_prep,
+                             self.info_infer, self.info_fps))
+        rv.addStretch()
+
+        # aba 2: pré-processamento
+        self.prep_panel = PreprocessPanel()
+        self.prep_panel.changed.connect(self.on_preprocess_changed)
+
+        self.tabs = QTabWidget()
+        self.tabs.addTab(scrolled(result_tab), "Resultado")
+        self.tabs.addTab(scrolled(self.prep_panel), "Pré-processamento")
+        self.tabs.currentChanged.connect(lambda _: self._update_histogram())
+
+        side = QWidget()
+        sv = QVBoxLayout(side)
+        sv.setContentsMargins(6, 12, 12, 12)
+        sv.setSpacing(8)
+        sv.addWidget(section("Situação", self.badge))   # sempre visível
+        sv.addWidget(self.tabs, 1)
+        side.setMinimumWidth(330)
+        side.setMaximumWidth(390)
 
         split = QSplitter(Qt.Horizontal)
         split.addWidget(left)
-        split.addWidget(scroll)
+        split.addWidget(side)
         split.setStretchFactor(0, 1)
         split.setChildrenCollapsible(False)
         self.setCentralWidget(split)
@@ -198,6 +227,7 @@ class MainWindow(QMainWindow):
 
     def _on_model_loaded(self, pipeline):
         self.pipeline = pipeline
+        self.pipeline.preprocessor.settings = self.prep_panel.settings
         self.badge.set_state("aguardando")
         self._set_sources_enabled(True)
         self.statusBar().showMessage(f"Modelo {self._weights_name} carregado. Abra uma imagem, vídeo, pasta ou a webcam.")
@@ -323,9 +353,25 @@ class MainWindow(QMainWindow):
         self._update_controls()
 
     # ------------------------------------------------------------------ exibição do resultado
+    def _view_image(self, result, with_banner=False):
+        """Imagem a exibir/salvar: anotada, ou original | anotada no modo comparar."""
+        annotated = Pipeline.with_banner(result) if with_banner else result.annotated
+        if self.btn_compare.isChecked():
+            return side_by_side(result.original, annotated, ("Original", "Processada"))
+        return annotated
+
+    def _refresh_view(self, *_):
+        if self.current_result is not None and self.stream is None:
+            self.view.set_image(to_qimage(self._view_image(self.current_result)))
+
+    def _update_histogram(self):
+        if self.current_result is not None and self.tabs.currentIndex() == 1:
+            self.prep_panel.show_frame(self.current_result)
+
     def _show_result(self, qimage, result, stats):
         self.current_result = result
-        self.view.set_image(qimage)
+        self.view.set_image(to_qimage(self._view_image(result)) if self.btn_compare.isChecked() else qimage)
+        self._update_histogram()
         self.badge.set_state(result.status, result.violations)
         self.counts.set_counts(result.counts)
 
@@ -342,6 +388,7 @@ class MainWindow(QMainWindow):
 
         w, h = stats.get("size", (0, 0))
         self.info_size.set(f"{w} × {h}")
+        self.info_prep.set(f"{result.prep_ms:.0f} ms" if self.pipeline.preprocessor.settings.active else "desligado")
         self.info_infer.set(f"{stats.get('infer_ms', result.infer_ms):.0f} ms")
         self.info_fps.set(f"{stats['fps']:.1f}" if "fps" in stats else "—")
 
@@ -367,6 +414,12 @@ class MainWindow(QMainWindow):
             self.pipeline.conf = value / 100
             self.reprocess_timer.start()
 
+    def on_preprocess_changed(self, settings):
+        if self.pipeline:
+            self.pipeline.preprocessor.settings = settings   # troca atômica: segura com o vídeo rodando
+            self.reprocess_timer.start()
+            self.statusBar().showMessage(f"Pré-processamento: {settings.describe()}")
+
     def on_show_conf(self, checked):
         if self.pipeline:
             self.pipeline.show_conf = checked
@@ -385,7 +438,7 @@ class MainWindow(QMainWindow):
                                                   "JPEG (*.jpg);;PNG (*.png)")
             if not path:
                 return
-        write_image(path, Pipeline.with_banner(result))
+        write_image(path, self._view_image(result, with_banner=True))
         self.statusBar().showMessage(f"Salvo em {path}")
 
     def toggle_record(self, on):
@@ -442,6 +495,7 @@ class MainWindow(QMainWindow):
                     f"<span style='color:{BAD_COLOR}'>Com EPI ausente: {s['violacao']}</span><br>"
                     f"Sem pessoas detectadas: {s['vazio']}"
                     + (f"<br>Arquivos com erro de leitura: {s['erros']}" if s["erros"] else "")
+                    + f"<br>Pré-processamento: {self.pipeline.preprocessor.settings.describe()}"
                     + f"<br><br>Imagens anotadas e <i>relatorio_epi.csv</i> salvos em:<br>{out_dir}")
         open_btn = msg.addButton("Abrir pasta", QMessageBox.ActionRole)
         msg.addButton("Fechar", QMessageBox.RejectRole)
