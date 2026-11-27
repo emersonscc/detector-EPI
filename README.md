@@ -4,7 +4,7 @@ Trabalho prático da disciplina **CCC309 – Processamento de Imagens e Visão C
 
 Aplicação desktop que verifica, em imagens, vídeos ou pela webcam, se as pessoas estão usando **capacete** e **óculos de proteção**. Cada EPI presente é marcado em verde, cada EPI ausente em vermelho, e uma faixa de situação indica se está tudo certo ou quantos itens faltam. Útil para fiscalização de segurança em obras, laboratórios e oficinas.
 
-> 🎬 **Vídeo demonstrativo:** 
+> 🎬 **Vídeo demonstrativo:** https://drive.google.com/file/d/1f7mx_3R0nmvipSn2C1a5vTaf9X2OgB3f/view?usp=drive_link
 
 **Equipe:** Emerson Rosado Scalcon · Leandro Trevisan Martins
 
@@ -138,8 +138,9 @@ As métricas do v1 pareciam melhores, mas eram infladas por quadros quase idênt
 ### Limitações
 - A classe `no_helmet` é a de enquadramento menos preciso (mAP50-95 0,425): o limite de uma cabeça sem capacete é mais ambíguo que o contorno de um capacete.
 - O desempenho na webcam foi avaliado de forma qualitativa; um conjunto de teste com fotos reais anotadas daria esse número.
-- Óculos comuns (de grau ou de sol) podem ser confundidos com óculos de proteção.
-- Os dados sintéticos vêm de poucas pessoas; mais variedade de rostos, ambientes e modelos de EPI melhoraria a generalização.
+- **Óculos de segurança incolores (armação fina, lente transparente) costumam não ser reconhecidos.** Os exemplos de óculos do treino são quase todos de câmeras de vigilância, com o objeto muito pequeno, ou recortes sintéticos de óculos tipo *goggle*, de armação grossa e colorida. Com a lente transparente, os olhos ficam visíveis quase como num rosto sem óculos, e o modelo tende a indicar "sem óculos" com confiança baixa (em torno de 50%). A correção seria incluir esse modelo de óculos nos dados (por exemplo, novos recortes para o gerador sintético) e retreinar.
+- No sentido oposto, óculos comuns (de grau ou de sol) podem ser confundidos com óculos de proteção.
+- Os dados sintéticos vêm de poucas pessoas e de poucos modelos de EPI; mais variedade de rostos, ambientes e equipamentos melhoraria a generalização.
 
 ## Estrutura do repositório
 ```
